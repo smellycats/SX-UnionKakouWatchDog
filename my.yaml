@@ -1,0 +1,6 @@
+consul:
+  ttl: 900
+  lock_name: union-watchdog-lock
+sms:
+  user_name: union_kakou
+check_interval: 3600
