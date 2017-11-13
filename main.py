@@ -93,6 +93,7 @@ class WatchDog(object):
         return kkdd_info_list
 
     def get_count(self, st ,et, unit_info):
+        """根据时间范围统计数据量"""
         content = '联网平台-{0}\n'.format(unit_info['name'])
         
         for i in unit_info['kkdd_list']:
@@ -101,6 +102,7 @@ class WatchDog(object):
                 continue
             for j in i['direction_list']:
                 r = self.union.get_stat3(st, et, i['crossing_index'], j['direction_index'])
+                logger.info('{0},{1},{2},{3}={4}'.format(st, et, i['crossing_index'], j['direction_index'], r['count']))
                 if r['count'] == 0:
                     content += '[{0},{1}]\n'.format(i['name'], j['name'])
 
@@ -128,13 +130,15 @@ class WatchDog(object):
         if self.uuid is None:
             self.uuid = self.con.put_session(self.ttl, self.lock_name)['ID']
             self.session_time = time.time()
+            print(self.uuid)
         # 大于一定时间间隔则更新session
         t = time.time() - self.session_time
         if t > (self.ttl - 15):
             self.con.renew_session(self.uuid)
             self.session_time = time.time()
+            print(self.uuid)
         l = self.con.get_lock(self.uuid, self.local_ip)
-        print(self.uuid, l)
+        print('l=%s'%l)
         # 返回 None 表示session过期
         if l == None:
             self.uuid = None
@@ -203,21 +207,9 @@ class WatchDog(object):
                         }
                         self.union = UnionKakou(**union_ini)
                         self.union.status = True
+                    time.sleep(2)
                 except Exception as e:
                     logger.exception(e)
                     time.sleep(15)
 
-if __name__ == '__main__':
-    wd = WatchDog()
-    #wd.stat_check()
-    wd.run()
-    #wd.get_kkdd_list()
-    #wd.loop_check_stat()
-    #st = '2016-11-21 12:00:00'
-    #et = '2016-11-21 13:00:00'
-    #wd.get_count(st, et, '441305000')
-    #wd.get_count(st, et, '441305000')
-    #for i in wd.kkdd_dict.keys():
-    #	kkdd_id = wd.kkdd_dict[i]['kkdd_id']
-    #   print len(wd.get_kkdd_list(kkdd_id))
-    #wd.get_stat2()
+
