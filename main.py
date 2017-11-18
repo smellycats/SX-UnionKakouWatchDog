@@ -131,14 +131,16 @@ class WatchDog(object):
             self.uuid = self.con.put_session(self.ttl, self.lock_name)['ID']
             self.session_time = time.time()
             print(self.uuid)
+        p = False
         # 大于一定时间间隔则更新session
         t = time.time() - self.session_time
         if t > (self.ttl - 15):
             self.con.renew_session(self.uuid)
             self.session_time = time.time()
-            print(self.uuid)
+            p = True
         l = self.con.get_lock(self.uuid, self.local_ip)
-        print('l=%s'%l)
+        if p:
+            print('{0} {1}'.format(self.uuid, l))
         # 返回 None 表示session过期
         if l == None:
             self.uuid = None
