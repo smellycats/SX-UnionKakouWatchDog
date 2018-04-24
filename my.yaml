@@ -1,6 +1,10 @@
-consul:
-  ttl: 900
-  lock_name: union-watchdog-lock
+union:
+  host: 68.123.123.123
+  port: 8083
 sms:
-  user_name: union_kakou
-check_interval: 3600
+  host: 10.123.123.123
+  port: 8070
+  user_name: hy_wd
+tel:
+  group1:
+    - '123'
