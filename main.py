@@ -56,6 +56,7 @@ class WatchDog(object):
                     self.get_stat(i)
 
     def get_stat(self, i):
+        """流量统计"""
         t = arrow.now('PRC')
         et = t.strftime('%Y-%m-%d %H:%M:%S')
         st = t.replace(hours=-1).strftime('%Y-%m-%d %H:%M:%S')
