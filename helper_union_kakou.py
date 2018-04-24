@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 import json
 
 import requests
@@ -131,11 +131,10 @@ class UnionKakou(object):
 
 
     def get_stat(self, param):
-        """根据ID获取控制单元信息"""
+        """根据时间获取车流量"""
         url = 'http://{0}:{1}/stat'.format(self.host, self.port)
         try:
             r = requests.get(url, params=param)
-            #print(r.url)
             if r.status_code == 200:
                 return json.loads(r.text)
             else:
