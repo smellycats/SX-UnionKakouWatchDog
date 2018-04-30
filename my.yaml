@@ -1,10 +1,12 @@
 union:
   host: 68.123.123.123
   port: 8083
+  apikey: 123
 sms:
   host: 10.123.123.123
   port: 8070
   user_name: hy_wd
+  apikey: 123
 tel:
   group1:
     - '123'
