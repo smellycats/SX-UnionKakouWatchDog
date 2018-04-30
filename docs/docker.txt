@@ -1,0 +1,1 @@
+docker run -it -d -e --restart=always --name union_kakou_watchdog --privileged=true -v /home/core/GitHub/SX-UnionKakouWatchDog:/home centos-py-base:v1.1 python /home/run.py
