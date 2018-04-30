@@ -3,8 +3,8 @@ import os
 import time
 import datetime
 import json
-#import io
-#import sys
+import io
+import sys
 
 import arrow
 import requests
@@ -14,10 +14,10 @@ from helper_sms import SMS
 from my_yaml import MyYAML
 from my_logger import *
 
-#sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 
-debug_logging('/logs/error.log')
+debug_logging('logs/error.log')
 logger = logging.getLogger('root')
 
 
@@ -41,19 +41,25 @@ class WatchDog(object):
         """发送短信"""
         try:
             self.sms.sms_send(content, mobiles)
-            logger.info('mobiles={0}, content={1}'.format(mobiles, content))
+            info = 'mobiles={0}, content={1}'.format(mobiles, content)
+            print(info)
+            logger.info(info)
         except Exception as e:
             logger.error(e)
 
-    def get_data(self):
-        control_unit_info = self.kakou.get_control_unit({'parent_id':1})
+    def get_control_unit(self):
+        control_unit_info = self.kakou.get_control_unit({'parent_id':100})
         for i in control_unit_info['items']:
             send_time = self.send_state.get(i['id'], {'send_time': None})['send_time']
             if send_time is None:
-                self.get_stat(i)
+                self.send_state[i['id']] = {
+                    'send_time': arrow.now('PRC').replace(hours=-24),
+                    'send_content': []
+                }
             else:
                 if arrow.now('PRC') > send_time.replace(hours=1):
                     self.get_stat(i)
+                    logger.info(i)
 
     def get_stat(self, i):
         """流量统计"""
@@ -61,31 +67,35 @@ class WatchDog(object):
         et = t.strftime('%Y-%m-%d %H:%M:%S')
         st = t.replace(hours=-1).strftime('%Y-%m-%d %H:%M:%S')
         traffic_crossing_info = self.kakou.get_traffic_crossing_info({'control_unit_id':i['id']})
-        crossing_info_list = []
+        miss_list = []
         for j in traffic_crossing_info['items']:
             param = {
                 'st': '"%s"' % st,
                 'et': '"%s"' % et,
-                'crossing_id': j['crossing_id']
+                'crossing_id': j['crossing_index']
             }
             count = self.kakou.get_stat(param)['count']
             if count == 0:
-                crossing_info_list.append(j['crossing_name'])
-        if len(crossing_info_list) != 0:
-            content = '联网平台-{0}\n'.format(i['name'])
-            for k in crossing_info_list:
-                content += '[{0}]\n'.format(k)
-            content += '超过1小时无数据'
-            self.send_sms(content, dict(self.my_ini['tel'])['group1'])
-        self.send_state[i['id']] = {
-            'send_time': arrow.now('PRC')
-        }
+                miss_list.append(j['crossing_name'])
+        # 故障卡口集合
+        miss_set = set(miss_list) - set(self.send_state[i['id']]['send_content'])
+        if len(miss_set) == 0:
+            if arrow.now('PRC') < self.send_state[i['id']]['send_time'].replace(hours=12):
+                self.send_state[i['id']]['send_content'] = miss_list
+                return
+        content = '联网平台-{0}{1}\n'.format(i['name'], '卡口')
+        for k in miss_list:
+            content += '[{0}]\n'.format(k)
+        content += '超过1小时无数据'
+        self.send_sms(content, dict(self.my_ini['tel'])['group1'])
+        self.send_state[i['id']]['send_time'] = t
+        self.send_state[i['id']]['send_content'] = miss_list
 
     def run(self):
         while 1:
             try:
                 time.sleep(5)
-                self.get_data()
+                self.get_control_unit()
             except Exception as e:
                 logger.exception(e)
                 time.sleep(15)
