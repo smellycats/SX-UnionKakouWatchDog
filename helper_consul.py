@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 import json
 import urllib
 import base64
@@ -7,12 +7,11 @@ import requests
 
 
 class ConsulAPI(object):
-    def __init__(self, host='127.0.0.1', port=8500):
+    def __init__(self, host='127.0.0.1', port=8500, path='/union/watchdog'):
         self.host = host
         self.port = port
+        self.path = path
         self.headers = {'content-type': 'application/json'}
-       
-        self.path = '/union/watchdog'
 
         self.status = False
 
