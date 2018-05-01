@@ -18,25 +18,27 @@ from my_logger import *
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 
-debug_logging('logs/error.log')
+debug_logging('/var/logs/error.log')
 logger = logging.getLogger('root')
 
 
 class WatchDog(object):
     def __init__(self):
-        self.ini = MyYAML('my.yaml')
+        self.ini = MyYAML('/home/my.yaml')
         self.my_ini = self.ini.get_ini()
 
-        self.con = ConsulAPI()
+        self.con = ConsulAPI(path=self.my_ini['consul']['path'])
         self.sms = None
         self.kakou = None
 
         self.send_state = {}
 
+        self.parent_id = self.my_ini['parent_id']
+
         logger.info('start')
         
     def __del__(self):
-        del self.my_ini
+        pass
 
     def get_service(self, service):
         """获取服务信息"""
@@ -65,7 +67,7 @@ class WatchDog(object):
             logger.error(e)
 
     def get_control_unit(self):
-        control_unit_info = self.kakou.get_control_unit({'parent_id':100})
+        control_unit_info = self.kakou.get_control_unit({'parent_id':self.parent_id})
         for i in control_unit_info['items']:
             send_time = self.send_state.get(i['id'], {'send_time': None})['send_time']
             if send_time is None:
@@ -104,7 +106,8 @@ class WatchDog(object):
                 self.send_state[i['id']]['send_content'] = miss_list
                 return
         if len(miss_list) > 0:
-            content = '联网平台-{0}{1}\n'.format(i['name'], '卡口')
+            control_unit_info = self.kakou.get_control_unit_by_id(self.parent_id)
+            content = '联网平台-{0}{1}\n'.format(i['name'], control_unit_info['name'])
             for k in miss_list:
                 content += '[{0}]\n'.format(k)
             content += '超过1小时无数据'
@@ -129,9 +132,9 @@ class WatchDog(object):
                             time.sleep(5)
                             continue
                         param = {
-                            'host':s['host'],
-                            'port':s['port'],
-                            'apikey':self.con.get_kv('apikey')
+                            'host': s['host'],
+                            'port': s['port'],
+                            'apikey': self.con.get_kv('apikey')
                         }
                         self.sms = SMS(**param)
                         self.sms.status = True
