@@ -121,7 +121,7 @@ class ConsulAPI(object):
             raise
 
     def get_kv(self, part):
-        """获取电话号码"""
+        """获取K/V"""
         url = 'http://{0}:{1}/v1/kv{2}/{3}'.format(
             self.host, self.port, self.path, part)
         try:
