@@ -11,6 +11,7 @@ import requests
 
 from helper_union_kakou import UnionKakou
 from helper_sms import SMS
+from helper_consul import ConsulAPI
 from my_yaml import MyYAML
 from my_logger import *
 
@@ -26,21 +27,37 @@ class WatchDog(object):
         self.ini = MyYAML('my.yaml')
         self.my_ini = self.ini.get_ini()
 
-        self.sms = SMS(**dict(self.my_ini['sms']))
-        self.kakou = UnionKakou(**dict(self.my_ini['union']))
+        self.con = ConsulAPI()
+        self.sms = None
+        self.kakou = None
 
         self.send_state = {}
-        #print(dict(self.my_ini['tel'])['group1'])
 
         logger.info('start')
         
     def __del__(self):
         del self.my_ini
 
+    def get_service(self, service):
+        """获取服务信息"""
+        s = self.con.get_service(service)
+        if len(s) == 0:
+            return None
+        h = self.con.get_health(service)
+        if len(h) == 0:
+            return None
+        service_status = {}
+        for i in h:
+            service_status[i['ServiceID']] = i['Status']
+        for i in s:
+            if service_status[i['ServiceID']] == 'passing':
+                return {'host': i['ServiceAddress'], 'port': i['ServicePort']}
+        return None
+
     def send_sms(self, content, mobiles):
         """发送短信"""
         try:
-            self.sms.sms_send(content, mobiles)
+            self.sms.sms_send(content, mobiles, self.con.get_kv('sms_user'))
             info = 'mobiles={0}, content={1}'.format(mobiles, content)
             print(info)
             logger.info(info)
@@ -69,6 +86,9 @@ class WatchDog(object):
         traffic_crossing_info = self.kakou.get_traffic_crossing_info({'control_unit_id':i['id']})
         miss_list = []
         for j in traffic_crossing_info['items']:
+            # 过滤无效卡口
+            if j['crossing_index'] in set(json.loads(self.con.get_kv('useless_kkdd'))):
+                continue
             param = {
                 'st': '"%s"' % st,
                 'et': '"%s"' % et,
@@ -83,20 +103,40 @@ class WatchDog(object):
             if arrow.now('PRC') < self.send_state[i['id']]['send_time'].replace(hours=12):
                 self.send_state[i['id']]['send_content'] = miss_list
                 return
-        content = '联网平台-{0}{1}\n'.format(i['name'], '卡口')
-        for k in miss_list:
-            content += '[{0}]\n'.format(k)
-        content += '超过1小时无数据'
-        self.send_sms(content, dict(self.my_ini['tel'])['group1'])
+        if len(miss_list) > 0:
+            content = '联网平台-{0}{1}\n'.format(i['name'], '卡口')
+            for k in miss_list:
+                content += '[{0}]\n'.format(k)
+            content += '超过1小时无数据'
+        self.send_sms(content, json.loads(self.con.get_kv('mobiles')))
         self.send_state[i['id']]['send_time'] = t
         self.send_state[i['id']]['send_content'] = miss_list
 
     def run(self):
         while 1:
-            try:
-                time.sleep(5)
-                self.get_control_unit()
-            except Exception as e:
-                logger.exception(e)
-                time.sleep(15)
-
+            if self.kakou is not None and self.kakou.status:
+                try:
+                    time.sleep(5)
+                    self.get_control_unit()
+                except Exception as e:
+                    logger.exception(e)
+                    time.sleep(15)
+            else:
+                try:
+                    if self.kakou is None or not self.kakou.status:
+                        s = self.get_service('kong')
+                        if s is None:
+                            time.sleep(5)
+                            continue
+                        param = {
+                            'host':s['host'],
+                            'port':s['port'],
+                            'apikey':self.con.get_kv('apikey')
+                        }
+                        self.sms = SMS(**param)
+                        self.sms.status = True
+                        self.kakou = UnionKakou(**param)
+                        self.kakou.status = True
+                except Exception as e:
+                    logger.exception(e)
+                    time.sleep(1)
