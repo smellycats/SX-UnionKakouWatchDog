@@ -34,6 +34,7 @@ class WatchDog(object):
         self.send_state = {}
 
         self.parent_id = self.my_ini['parent_id']
+        self.name = '卡口'#self.my_ini['name']
 
         logger.info('start')
         
@@ -106,8 +107,8 @@ class WatchDog(object):
                 self.send_state[i['id']]['send_content'] = miss_list
                 return
         if len(miss_list) > 0:
-            control_unit_info = self.kakou.get_control_unit_by_id(self.parent_id)
-            content = '联网平台-{0}{1}\n'.format(i['name'], control_unit_info['name'])
+            #control_unit_info = self.kakou.get_control_unit_by_id(self.parent_id)
+            content = '联网平台-{0}{1}\n'.format(i['name'], self.name)
             for k in miss_list:
                 content += '[{0}]\n'.format(k)
             content += '超过1小时无数据'
